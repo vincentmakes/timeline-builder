@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Slide Maker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #002EFF;
+            --primary-light: #B1D1FF;
+            --text: #353535;
+            --text-muted: #7C9CBF;
+            --border: #D0E0F2;
+            --bg: #F0F6FF;
+            --white: #FFFFFF;
+            --font-scale: 1;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+        
+        .app { display: flex; height: 100vh; }
+        
+        /* Toolbar */
+        .toolbar {
+            width: 240px;
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+        
+        .logo {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #003DA5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-label {
+            font-size: 0.6em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        
+        .color-grid {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .color-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.15s;
+        }
+        .color-dot:hover { transform: scale(1.1); }
+        .color-dot.active { border-color: var(--text); }
+        
+        .style-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .style-btn {
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+        }
+        .style-btn:hover { border-color: var(--primary); }
+        .style-btn.active { background: var(--primary-light); border-color: var(--primary); }
+        
+        /* Font Size Control */
+        .font-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .font-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: var(--white);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.15s;
+        }
+        .font-btn:hover { background: var(--bg); border-color: var(--primary); }
+        .font-size-display {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+        
+        .toolbar-footer {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #0024cc; }
+        .btn-secondary { background: var(--bg); border: 1px solid var(--border); color: var(--text); }
+        .btn-secondary:hover { background: var(--border); }
+        
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            overflow: auto;
+        }
+        
+        /* The Slide - dynamic sizing */
+        .slide {
+            width: var(--slide-width, 960px);
+            height: var(--slide-height, 540px);
+            min-width: 800px;
+            min-height: 450px;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: width 0.2s, height 0.2s;
+        }
+        
+        /* Slide Title */
+        .slide-title {
+            position: absolute;
+            top: 40px;
+            left: 60px;
+            right: 60px;
+            font-size: calc(28px * var(--font-scale));
+            font-weight: 700;
+            color: var(--text);
+            outline: none;
+            border: none;
+            background: transparent;
+        }
+        .slide-title:empty::before {
+            content: 'Timeline Title';
+            color: #C9D1D8;
+        }
+        
+        /* Timeline Container */
+        .timeline {
+            position: absolute;
+            left: 60px;
+            right: 60px;
+            top: 100px;
+            bottom: 60px;
+        }
+        
+        /* The Spine - centered vertically */
+        .spine {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 3px;
+            transform: translateY(-50%);
+            cursor: pointer;
+            z-index: 1;
+        }
+        
+        .spine::before {
+            content: 'Click to add milestone';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .spine:hover::before { opacity: 0.8; }
+        .spine.has-items::before { display: none; }
+        
+        /* Milestone - dot is fixed on spine */
+        .milestone {
+            position: absolute;
+            top: 50%;
+            z-index: 10;
+        }
+        .milestone.selected { z-index: 20; }
+        
+        /* The dot - always on spine */
+        .milestone-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border: 3px solid var(--white);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            cursor: grab;
+            z-index: 5;
+            transition: transform 0.15s;
+        }
+        .milestone-dot:active { cursor: grabbing; }
+        .milestone:hover .milestone-dot { transform: translate(-50%, -50%) scale(1.2); }
+        .milestone.selected .milestone-dot { box-shadow: 0 0 0 3px var(--primary-light), 0 2px 8px rgba(0,0,0,0.15); }
+        
+        /* The connector line */
+        .milestone-line {
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            background: var(--primary);
+            opacity: 0.4;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+        
+        /* The text content - draggable and resizable */
+        .milestone-content {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            padding: 8px 12px;
+            min-width: 80px;
+            width: var(--content-width, 120px);
+            cursor: ns-resize;
+            border-radius: 6px;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+        .milestone-content:hover { background: rgba(0,46,255,0.05); }
+        .milestone.selected .milestone-content { 
+            background: rgba(0,46,255,0.08);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+        
+        /* Resize handle */
+        .resize-handle {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 12px;
+            height: 12px;
+            cursor: ew-resize;
+            opacity: 0;
+            transition: opacity 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .resize-handle::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-right: 2px solid var(--text-muted);
+            border-bottom: 2px solid var(--text-muted);
+        }
+        .milestone:hover .resize-handle,
+        .milestone.selected .resize-handle { opacity: 1; }
+        
+        /* Title on top, label below */
+        .milestone-title {
+            font-size: calc(14px * var(--font-scale));
+            font-weight: 600;
+            color: var(--text);
+            outline: none;
+            display: block;
+            cursor: text;
+            margin-bottom: 2px;
+        }
+        .milestone-title:empty::before { content: 'Title'; color: #C9D1D8; }
+        
+        .milestone-label {
+            font-size: calc(11px * var(--font-scale));
+            font-weight: 600;
+            color: var(--primary);
+            outline: none;
+            display: block;
+            cursor: text;
+        }
+        .milestone-label:empty::before { content: 'Label'; color: #C9D1D8; }
+        
+        /* Delete button */
+        .milestone.selected .delete-btn { display: flex; }
+        .delete-btn {
+            display: none;
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: #CE1618;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+        }
+        
+        /* Hint */
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        
+        /* Style Variants */
+        .slide.style-minimal .spine { height: 2px; }
+        .slide.style-minimal .milestone-dot { width: 12px; height: 12px; border-width: 2px; }
+        
+        .slide.style-bold .spine { height: 10px; border-radius: 5px; }
+        .slide.style-bold .milestone-dot { width: 24px; height: 24px; border-width: 4px; }
+        .slide.style-bold .milestone-title { font-size: calc(16px * var(--font-scale)); }
+        
+        .slide.style-cards .milestone-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+        .slide.style-cards .milestone.selected .milestone-content {
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 0 0 2px var(--primary-light);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        
+        .modal {
+            background: var(--white);
+            border-radius: 8px;
+            min-width: 450px;
+            max-width: 90vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1em; font-weight: 600; }
+        .modal-body { padding: 20px; }
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .json-area {
+            width: 100%;
+            height: 200px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75em;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            resize: vertical;
+        }
+        
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 8px;
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+        }
+        .context-menu.active { display: block; }
+        .context-menu-header {
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 4px 8px 8px;
+        }
+        .context-menu-colors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 0 4px 8px;
+        }
+        .context-menu-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+        }
+        .context-menu-color:hover { transform: scale(1.15); }
+        .context-menu-color.active { border-color: var(--text); }
+        .context-menu-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px;
+            border: none;
+            background: none;
+            border-radius: 4px;
+            font-size: 0.8em;
+            color: var(--text);
+            cursor: pointer;
+            text-align: left;
+        }
+        .context-menu-item:hover { background: var(--bg); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <aside class="toolbar">
+            <div class="logo">
+                <span class="material-icons-outlined">timeline</span>
+                Timeline Maker
+            </div>
+            
+            <div>
+                <div class="section-label">Primary Colors</div>
+                <div class="color-grid" id="primaryColors"></div>
+            </div>
+            
+            <div>
+                <div class="section-label">Secondary Colors</div>
+                <div class="color-grid" id="secondaryColors"></div>
+            </div>
+            
+            <div>
+                <div class="section-label">Style</div>
+                <div class="style-btns">
+                    <button class="style-btn active" data-style="default">Default</button>
+                    <button class="style-btn" data-style="minimal">Minimal</button>
+                    <button class="style-btn" data-style="bold">Bold</button>
+                    <button class="style-btn" data-style="cards">Cards</button>
+                </div>
+            </div>
+            
+            <div>
+                <div class="section-label">Text Size</div>
+                <div class="font-control">
+                    <button class="font-btn" id="fontMinus">−</button>
+                    <span class="font-size-display" id="fontDisplay">100%</span>
+                    <button class="font-btn" id="fontPlus">+</button>
+                </div>
+            </div>
+            
+            <div class="toolbar-footer">
+                <button class="btn btn-secondary" id="distributeBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">align_horizontal_center</span>
+                    Distribute Evenly
+                </button>
+                <button class="btn btn-secondary" id="importBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">upload</span>
+                    Import JSON
+                </button>
+                <button class="btn btn-secondary" id="exportJSONBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">code</span>
+                    Export JSON
+                </button>
+                <button class="btn btn-primary" id="exportSVGBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">download</span>
+                    Export SVG
+                </button>
+                <button class="btn btn-secondary" id="clearBtn" style="margin-top: 8px;">Clear All</button>
+            </div>
+        </aside>
+        
+        <main class="canvas-area">
+            <div class="slide" id="slide">
+                <div class="slide-title" contenteditable="true" id="slideTitle"></div>
+                
+                <div class="timeline" id="timeline">
+                    <div class="spine" id="spine"></div>
+                </div>
+                
+                <div class="hint">Click to add • Drag dot ↔ • Drag text ↕ • Corner to resize • Right-click for color</div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-header">Marker Color</div>
+        <div class="context-menu-colors" id="contextColors"></div>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="resetColorBtn">
+            <span class="material-icons-outlined" style="font-size:16px;">palette</span>
+            Reset Color
+        </button>
+        <button class="context-menu-item" id="resetWidthBtn">
+            <span class="material-icons-outlined" style="font-size:16px;">width_normal</span>
+            Reset Width
+        </button>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Import JSON</h3>
+                <button class="btn btn-secondary" style="padding:6px 10px;" onclick="hideModal('importModal')">
+                    <span class="material-icons-outlined" style="font-size:18px;">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea class="json-area" id="importArea" placeholder="Paste JSON here..."></textarea>
+                <input type="file" id="importFile" accept=".json" style="display:none;">
+                <button class="btn btn-secondary" style="margin-top:12px;" onclick="document.getElementById('importFile').click()">
+                    <span class="material-icons-outlined" style="font-size:18px;">folder</span> Choose File
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('importModal')">Cancel</button>
+                <button class="btn btn-primary" id="confirmImport">Import</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Export JSON</h3>
+                <button class="btn btn-secondary" style="padding:6px 10px;" onclick="hideModal('exportModal')">
+                    <span class="material-icons-outlined" style="font-size:18px;">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea class="json-area" id="exportArea" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="copyJSON">
+                    <span class="material-icons-outlined" style="font-size:18px;">content_copy</span> Copy
+                </button>
+                <button class="btn btn-primary" id="downloadJSON">
+                    <span class="material-icons-outlined" style="font-size:18px;">download</span> Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sulzer Primary Colors (Blues + Status)
+        const PRIMARY_COLORS = [
+            // Brand Blues
+            { name: 'Navy', hex: '#001478' },
+            { name: 'Indigo', hex: '#001B9A' },
+            { name: 'Deep Sea', hex: '#003DA5' },
+            { name: 'Blueberry', hex: '#002EFF' },
+            // Interactive Blues
+            { name: 'Ocean', hex: '#0062F2' },
+            { name: 'Sea', hex: '#0D6EFD' },
+            { name: 'Water', hex: '#3C8BFF' },
+            { name: 'Lake', hex: '#6EA8FE' },
+            { name: 'Sky', hex: '#B1D1FF' },
+            // Status
+            { name: 'Forest', hex: '#30A52D' },
+            { name: 'Fire', hex: '#F18100' },
+            { name: 'Ruby', hex: '#CE1618' }
+        ];
+        
+        // Sulzer Secondary Colors
+        const SECONDARY_COLORS = [
+            // Reds & Pinks
+            { name: 'Cherry', hex: '#EA5455' },
+            { name: 'Chili', hex: '#FF0000' },
+            { name: 'Rose', hex: '#D63384' },
+            // Purples
+            { name: 'Lotus', hex: '#D633CF' },
+            { name: 'Violet', hex: '#8F0098' },
+            { name: 'Lilac', hex: '#A990DD' },
+            { name: 'Berry', hex: '#7367F0' },
+            { name: 'Gem', hex: '#6610F2' },
+            // Blues & Cyans
+            { name: 'River', hex: '#0076DE' },
+            { name: 'Bondi', hex: '#00C8FF' },
+            // Greens
+            { name: 'Moss', hex: '#20C997' },
+            { name: 'Grass', hex: '#5DCA5A' },
+            // Yellows & Oranges
+            { name: 'Lemon', hex: '#FFDA3A' },
+            { name: 'Beer', hex: '#FFB443' },
+            { name: 'Sun', hex: '#FF9F43' },
+            // Browns
+            { name: 'Camel', hex: '#A97D4F' },
+            { name: 'Cacao', hex: '#B16E36' },
+            // Neutrals (dark ones useful for accents)
+            { name: 'Granite', hex: '#364064' },
+            { name: 'Night', hex: '#353535' }
+        ];
+        
+        let state = {
+            title: '',
+            color: '#002EFF',
+            style: 'default',
+            fontScale: 100,
+            milestones: [],
+            selectedId: null,
+            contextMilestoneId: null,
+            idCounter: 0
+        };
+        
+        // Init
+        function init() {
+            renderColors();
+            setupListeners();
+            setupCanvasResize();
+            setupContextMenu();
+        }
+        
+        function setupContextMenu() {
+            const menu = document.getElementById('contextMenu');
+            const colorsContainer = document.getElementById('contextColors');
+            const allColors = [...PRIMARY_COLORS, ...SECONDARY_COLORS];
+            
+            // Render color options in context menu
+            colorsContainer.innerHTML = allColors.map(c => 
+                `<div class="context-menu-color" style="background:${c.hex}" data-color="${c.hex}" title="${c.name}"></div>`
+            ).join('');
+            
+            // Color click handler
+            colorsContainer.addEventListener('click', (e) => {
+                const colorEl = e.target.closest('.context-menu-color');
+                if (!colorEl || !state.contextMilestoneId) return;
+                
+                const m = state.milestones.find(x => x.id === state.contextMilestoneId);
+                if (m) {
+                    m.color = colorEl.dataset.color;
+                    renderMilestones();
+                }
+                hideContextMenu();
+            });
+            
+            // Reset color handler
+            document.getElementById('resetColorBtn').addEventListener('click', () => {
+                if (!state.contextMilestoneId) return;
+                const m = state.milestones.find(x => x.id === state.contextMilestoneId);
+                if (m) {
+                    delete m.color;
+                    renderMilestones();
+                }
+                hideContextMenu();
+            });
+            
+            // Reset width handler
+            document.getElementById('resetWidthBtn').addEventListener('click', () => {
+                if (!state.contextMilestoneId) return;
+                const m = state.milestones.find(x => x.id === state.contextMilestoneId);
+                if (m) {
+                    delete m.width;
+                    renderMilestones();
+                }
+                hideContextMenu();
+            });
+            
+            // Hide on click outside
+            document.addEventListener('click', (e) => {
+                if (!menu.contains(e.target)) {
+                    hideContextMenu();
+                }
+            });
+            
+            // Hide on scroll
+            document.addEventListener('scroll', hideContextMenu, true);
+        }
+        
+        function showContextMenu(milestoneId, x, y) {
+            const menu = document.getElementById('contextMenu');
+            const m = state.milestones.find(x => x.id === milestoneId);
+            
+            state.contextMilestoneId = milestoneId;
+            
+            // Update active color indicator
+            const currentColor = m?.color || state.color;
+            menu.querySelectorAll('.context-menu-color').forEach(el => {
+                el.classList.toggle('active', el.dataset.color === currentColor);
+            });
+            
+            // Position menu
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            menu.classList.add('active');
+            
+            // Adjust if off-screen
+            const rect = menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                menu.style.left = `${window.innerWidth - rect.width - 10}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                menu.style.top = `${window.innerHeight - rect.height - 10}px`;
+            }
+        }
+        
+        function hideContextMenu() {
+            document.getElementById('contextMenu').classList.remove('active');
+            state.contextMilestoneId = null;
+        }
+        
+        function setupCanvasResize() {
+            const canvasArea = document.querySelector('.canvas-area');
+            const slide = document.getElementById('slide');
+            const ASPECT_RATIO = 16 / 9;
+            const PADDING = 80; // 40px on each side
+            const MIN_WIDTH = 800;
+            const MAX_WIDTH = 1600;
+            
+            function resizeCanvas() {
+                const availableWidth = canvasArea.clientWidth - PADDING;
+                const availableHeight = canvasArea.clientHeight - PADDING;
+                
+                // Calculate dimensions maintaining aspect ratio
+                let width = Math.min(availableWidth, availableHeight * ASPECT_RATIO);
+                width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
+                let height = width / ASPECT_RATIO;
+                
+                // If height exceeds available, scale down
+                if (height > availableHeight) {
+                    height = availableHeight;
+                    width = height * ASPECT_RATIO;
+                }
+                
+                document.documentElement.style.setProperty('--slide-width', `${Math.round(width)}px`);
+                document.documentElement.style.setProperty('--slide-height', `${Math.round(height)}px`);
+            }
+            
+            // Initial resize
+            resizeCanvas();
+            
+            // Resize observer for dynamic updates
+            const resizeObserver = new ResizeObserver(resizeCanvas);
+            resizeObserver.observe(canvasArea);
+            
+            // Also handle window resize
+            window.addEventListener('resize', resizeCanvas);
+        }
+        
+        function renderColors() {
+            const primaryContainer = document.getElementById('primaryColors');
+            const secondaryContainer = document.getElementById('secondaryColors');
+            
+            primaryContainer.innerHTML = PRIMARY_COLORS.map(c => 
+                `<div class="color-dot ${c.hex === state.color ? 'active' : ''}" style="background:${c.hex}" data-color="${c.hex}" title="${c.name}"></div>`
+            ).join('');
+            
+            secondaryContainer.innerHTML = SECONDARY_COLORS.map(c => 
+                `<div class="color-dot ${c.hex === state.color ? 'active' : ''}" style="background:${c.hex}" data-color="${c.hex}" title="${c.name}"></div>`
+            ).join('');
+            
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                dot.addEventListener('click', () => {
+                    state.color = dot.dataset.color;
+                    document.documentElement.style.setProperty('--primary', state.color);
+                    document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.dataset.color === state.color));
+                    renderMilestones();
+                });
+            });
+        }
+        
+        function setupListeners() {
+            // Style buttons
+            document.querySelectorAll('.style-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.style = btn.dataset.style;
+                    document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b === btn));
+                    document.getElementById('slide').className = 'slide' + (state.style !== 'default' ? ` style-${state.style}` : '');
+                });
+            });
+            
+            // Font size controls
+            document.getElementById('fontMinus').addEventListener('click', () => {
+                state.fontScale = Math.max(70, state.fontScale - 10);
+                updateFontScale();
+            });
+            document.getElementById('fontPlus').addEventListener('click', () => {
+                state.fontScale = Math.min(150, state.fontScale + 10);
+                updateFontScale();
+            });
+            
+            // Spine click to add
+            document.getElementById('spine').addEventListener('click', (e) => {
+                if (e.target !== e.currentTarget) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                addMilestone(Math.max(0.05, Math.min(0.95, pos)));
+            });
+            
+            // Clear
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                if (state.milestones.length && confirm('Clear all milestones?')) {
+                    state.milestones = [];
+                    state.selectedId = null;
+                    renderMilestones();
+                }
+            });
+            
+            // Distribute evenly
+            document.getElementById('distributeBtn').addEventListener('click', () => {
+                if (state.milestones.length < 2) return;
+                
+                const count = state.milestones.length;
+                const startPos = 0.05;
+                const endPos = 0.95;
+                const step = (endPos - startPos) / (count - 1);
+                
+                state.milestones.forEach((m, i) => {
+                    m.position = startPos + (i * step);
+                });
+                
+                renderMilestones();
+            });
+            
+            // Import/Export
+            document.getElementById('importBtn').addEventListener('click', () => showModal('importModal'));
+            document.getElementById('exportJSONBtn').addEventListener('click', showExportJSON);
+            document.getElementById('exportSVGBtn').addEventListener('click', exportSVG);
+            document.getElementById('confirmImport').addEventListener('click', confirmImport);
+            document.getElementById('copyJSON').addEventListener('click', copyJSON);
+            document.getElementById('downloadJSON').addEventListener('click', downloadJSON);
+            document.getElementById('importFile').addEventListener('change', handleFileImport);
+            
+            // Title change
+            document.getElementById('slideTitle').addEventListener('input', (e) => {
+                state.title = e.target.textContent;
+            });
+            
+            // Click to deselect
+            document.getElementById('slide').addEventListener('click', (e) => {
+                if (e.target.id === 'slide' || e.target.id === 'timeline' || e.target.id === 'spine') {
+                    state.selectedId = null;
+                    renderMilestones();
+                }
+            });
+            
+            // Keyboard delete
+            document.addEventListener('keydown', (e) => {
+                if (e.target.matches('[contenteditable]')) return;
+                if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId) {
+                    e.preventDefault();
+                    state.milestones = state.milestones.filter(m => m.id !== state.selectedId);
+                    state.selectedId = null;
+                    renderMilestones();
+                }
+            });
+        }
+        
+        function updateFontScale() {
+            document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
+            document.getElementById('fontDisplay').textContent = `${state.fontScale}%`;
+        }
+        
+        function addMilestone(position) {
+            // Alternate above/below
+            const above = state.milestones.length % 2 === 0;
+            
+            const m = {
+                id: ++state.idCounter,
+                position, // horizontal position (0-1)
+                yOffset: above ? -60 : 60, // vertical offset from spine (negative = above, positive = below)
+                label: '',
+                title: ''
+            };
+            
+            state.milestones.push(m);
+            state.milestones.sort((a, b) => a.position - b.position);
+            state.selectedId = m.id;
+            
+            renderMilestones();
+            
+            // Focus title
+            setTimeout(() => {
+                const el = document.querySelector(`[data-id="${m.id}"] .milestone-title`);
+                if (el) el.focus();
+            }, 10);
+        }
+        
+        function renderMilestones() {
+            const timeline = document.getElementById('timeline');
+            const spine = document.getElementById('spine');
+            
+            // Remove existing milestones
+            timeline.querySelectorAll('.milestone').forEach(el => el.remove());
+            
+            // Toggle spine hint
+            spine.classList.toggle('has-items', state.milestones.length > 0);
+            
+            state.milestones.forEach(m => {
+                const el = document.createElement('div');
+                el.className = `milestone ${state.selectedId === m.id ? 'selected' : ''}`;
+                el.dataset.id = m.id;
+                el.style.left = `${m.position * 100}%`;
+                
+                const isAbove = m.yOffset < 0;
+                const absOffset = Math.abs(m.yOffset);
+                
+                // Use individual color or fall back to global
+                const markerColor = m.color || state.color;
+                
+                // Custom width
+                const contentWidth = m.width || 120;
+                
+                // Line positioning
+                const lineStyle = isAbove 
+                    ? `bottom: 50%; height: ${absOffset}px;`
+                    : `top: 50%; height: ${absOffset}px;`;
+                
+                // Content positioning
+                const contentStyle = isAbove
+                    ? `bottom: calc(50% + ${absOffset}px); --content-width: ${contentWidth}px;`
+                    : `top: calc(50% + ${absOffset}px); --content-width: ${contentWidth}px;`;
+                
+                el.innerHTML = `
+                    <div class="milestone-dot" style="background:${markerColor};"></div>
+                    <div class="milestone-line" style="background:${markerColor}; ${lineStyle}"></div>
+                    <div class="milestone-content" style="${contentStyle}">
+                        <span class="milestone-title" contenteditable="true">${m.title}</span>
+                        <span class="milestone-label" style="color:${markerColor};" contenteditable="true">${m.label}</span>
+                        <div class="resize-handle" title="Drag to resize"></div>
+                    </div>
+                    <button class="delete-btn" title="Delete">×</button>
+                `;
+                
+                // Select on click
+                el.addEventListener('click', (e) => {
+                    if (!e.target.matches('[contenteditable]')) {
+                        e.stopPropagation();
+                        state.selectedId = m.id;
+                        renderMilestones();
+                    }
+                });
+                
+                // Context menu on right-click
+                el.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showContextMenu(m.id, e.clientX, e.clientY);
+                });
+                
+                // Drag dot horizontally
+                el.querySelector('.milestone-dot').addEventListener('mousedown', (e) => startHorizontalDrag(m.id, e));
+                
+                // Drag content vertically
+                el.querySelector('.milestone-content').addEventListener('mousedown', (e) => {
+                    if (!e.target.matches('[contenteditable]') && !e.target.classList.contains('resize-handle')) {
+                        startVerticalDrag(m.id, e);
+                    }
+                });
+                
+                // Resize handle
+                el.querySelector('.resize-handle').addEventListener('mousedown', (e) => startResizeDrag(m.id, e));
+                
+                // Content edits
+                el.querySelector('.milestone-label').addEventListener('input', (e) => { m.label = e.target.textContent; });
+                el.querySelector('.milestone-title').addEventListener('input', (e) => { m.title = e.target.textContent; });
+                
+                // Prevent text selection during potential drag
+                el.querySelector('.milestone-label').addEventListener('mousedown', (e) => e.stopPropagation());
+                el.querySelector('.milestone-title').addEventListener('mousedown', (e) => e.stopPropagation());
+                
+                // Delete button
+                el.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.milestones = state.milestones.filter(x => x.id !== m.id);
+                    state.selectedId = null;
+                    renderMilestones();
+                });
+                
+                timeline.appendChild(el);
+            });
+        }
+        
+        function startHorizontalDrag(id, e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const spine = document.getElementById('spine');
+            const rect = spine.getBoundingClientRect();
+            
+            const onMove = (e) => {
+                const m = state.milestones.find(x => x.id === id);
+                if (!m) return;
+                const pos = (e.clientX - rect.left) / rect.width;
+                m.position = Math.max(0.05, Math.min(0.95, pos));
+                state.milestones.sort((a, b) => a.position - b.position);
+                renderMilestones();
+            };
+            
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        
+        function startVerticalDrag(id, e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const timeline = document.getElementById('timeline');
+            const timelineRect = timeline.getBoundingClientRect();
+            const spineY = timelineRect.top + timelineRect.height / 2;
+            
+            state.selectedId = id;
+            renderMilestones();
+            
+            const onMove = (e) => {
+                const m = state.milestones.find(x => x.id === id);
+                if (!m) return;
+                
+                // Calculate offset from spine
+                let offset = e.clientY - spineY;
+                
+                // Clamp offset (min 40px from spine, max 140px)
+                if (offset < 0) {
+                    offset = Math.max(-140, Math.min(-40, offset));
+                } else {
+                    offset = Math.min(140, Math.max(40, offset));
+                }
+                
+                m.yOffset = offset;
+                renderMilestones();
+            };
+            
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        
+        function startResizeDrag(id, e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const m = state.milestones.find(x => x.id === id);
+            if (!m) return;
+            
+            const startX = e.clientX;
+            const startWidth = m.width || 120;
+            
+            state.selectedId = id;
+            renderMilestones();
+            
+            const onMove = (e) => {
+                const delta = e.clientX - startX;
+                // Multiply delta by 2 since box is centered (grows both sides)
+                const newWidth = Math.max(80, Math.min(250, startWidth + delta * 2));
+                m.width = Math.round(newWidth);
+                renderMilestones();
+            };
+            
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        
+        // Modal helpers
+        function showModal(id) { document.getElementById(id).classList.add('active'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        // Import/Export
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => document.getElementById('importArea').value = e.target.result;
+            reader.readAsText(file);
+        }
+        
+        function confirmImport() {
+            try {
+                const data = JSON.parse(document.getElementById('importArea').value);
+                state.title = data.title || '';
+                state.color = data.color || '#002EFF';
+                state.style = data.style || 'default';
+                state.fontScale = data.fontScale || 100;
+                state.milestones = data.milestones || [];
+                state.idCounter = Math.max(0, ...state.milestones.map(m => m.id || 0));
+                
+                // Apply state
+                document.getElementById('slideTitle').textContent = state.title;
+                document.documentElement.style.setProperty('--primary', state.color);
+                updateFontScale();
+                
+                // Update UI
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.dataset.color === state.color));
+                document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b.dataset.style === state.style));
+                document.getElementById('slide').className = 'slide' + (state.style !== 'default' ? ` style-${state.style}` : '');
+                
+                renderMilestones();
+                hideModal('importModal');
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+            }
+        }
+        
+        function showExportJSON() {
+            const data = {
+                version: '1.0',
+                title: state.title,
+                color: state.color,
+                style: state.style,
+                fontScale: state.fontScale,
+                milestones: state.milestones
+            };
+            document.getElementById('exportArea').value = JSON.stringify(data, null, 2);
+            showModal('exportModal');
+        }
+        
+        function copyJSON() {
+            document.getElementById('exportArea').select();
+            document.execCommand('copy');
+            const btn = document.getElementById('copyJSON');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-outlined" style="font-size:18px;">check</span> Copied!';
+            setTimeout(() => btn.innerHTML = orig, 2000);
+        }
+        
+        function downloadJSON() {
+            const blob = new Blob([document.getElementById('exportArea').value], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${(state.title || 'timeline').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.json`;
+            a.click();
+        }
+        
+        // SVG Export
+        function exportSVG() {
+            const slide = document.getElementById('slide');
+            const W = slide.clientWidth;
+            const H = slide.clientHeight;
+            const title = state.title || 'Timeline';
+            const scale = state.fontScale / 100;
+            
+            // Timeline area: top=100, bottom=60 from edges
+            // Spine is centered within timeline area
+            const timelineTop = 100;
+            const timelineBottom = H - 60;
+            const timelineHeight = timelineBottom - timelineTop;
+            const spineY = timelineTop + timelineHeight / 2;
+            
+            const spineH = state.style === 'minimal' ? 2 : state.style === 'bold' ? 10 : 6;
+            const markerR = state.style === 'minimal' ? 6 : state.style === 'bold' ? 12 : 9;
+            
+            let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<defs><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap');.f{font-family:'Inter',sans-serif;}</style></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="60" y="60" class="f" font-size="${28 * scale}" font-weight="700" fill="#353535">${esc(title)}</text>
+<rect x="60" y="${spineY - spineH/2}" width="${W - 120}" height="${spineH}" rx="${spineH/2}" fill="${state.color}"/>
+`;
+            
+            state.milestones.forEach(m => {
+                const x = 60 + m.position * (W - 120);
+                const isAbove = m.yOffset < 0;
+                const absOffset = Math.abs(m.yOffset);
+                
+                // Use individual color or fall back to global
+                const markerColor = m.color || state.color;
+                
+                // Custom width
+                const contentWidth = m.width || 120;
+                
+                // Connector line
+                const lineY1 = isAbove ? spineY - markerR : spineY + markerR;
+                const lineY2 = isAbove ? spineY - absOffset : spineY + absOffset;
+                svg += `<line x1="${x}" y1="${lineY1}" x2="${x}" y2="${lineY2}" stroke="${markerColor}" stroke-opacity="0.4" stroke-width="2"/>`;
+                
+                // Marker (always on spine)
+                svg += `<circle cx="${x}" cy="${spineY}" r="${markerR}" fill="${markerColor}" stroke="#fff" stroke-width="3"/>`;
+                
+                // Calculate text positions to match CSS layout
+                // Content box is positioned with its edge at absOffset from spine
+                // Text has ~8px padding inside content box
+                const titleSize = 14 * scale;
+                const labelSize = 11 * scale;
+                const padding = 8;
+                
+                let titleY, labelY;
+                if (isAbove) {
+                    // Content bottom is at spineY - absOffset
+                    // Title is near top of content, label below it
+                    // Working backwards: label baseline, then title above it
+                    labelY = spineY - absOffset - padding;
+                    titleY = labelY - labelSize - 2;
+                } else {
+                    // Content top is at spineY + absOffset
+                    // Title at top of content, label below
+                    titleY = spineY + absOffset + padding + titleSize;
+                    labelY = titleY + labelSize + 2;
+                }
+                
+                // Cards background
+                if (state.style === 'cards') {
+                    const cardW = contentWidth;
+                    const cardH = 50;
+                    const cardY = isAbove ? spineY - absOffset - cardH : spineY + absOffset;
+                    svg += `<rect x="${x - cardW/2}" y="${cardY}" width="${cardW}" height="${cardH}" rx="8" fill="#fff" stroke="#D0E0F2"/>`;
+                }
+                
+                // Title
+                svg += `<text x="${x}" y="${titleY}" class="f" font-size="${titleSize}" font-weight="600" fill="#353535" text-anchor="middle">${esc(m.title)}</text>`;
+                // Label (below title)
+                if (m.label) {
+                    svg += `<text x="${x}" y="${labelY}" class="f" font-size="${labelSize}" font-weight="600" fill="${markerColor}" text-anchor="middle">${esc(m.label)}</text>`;
+                }
+            });
+            
+            svg += '</svg>';
+            
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${(title).replace(/[^a-z0-9]/gi, '-').toLowerCase()}.svg`;
+            a.click();
+        }
+        
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        
+        init();
+    </script>
+</body>
+</html>
