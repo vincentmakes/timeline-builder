@@ -527,9 +527,17 @@
             </div>
             
             <div class="toolbar-footer">
+                <button class="btn btn-secondary" id="newBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">add_circle_outline</span>
+                    New Timeline
+                </button>
                 <button class="btn btn-secondary" id="distributeBtn">
                     <span class="material-icons-outlined" style="font-size:18px;">align_horizontal_center</span>
                     Distribute Evenly
+                </button>
+                <button class="btn btn-secondary" id="shareUrlBtn">
+                    <span class="material-icons-outlined" style="font-size:18px;">link</span>
+                    Copy Share URL
                 </button>
                 <button class="btn btn-secondary" id="importBtn">
                     <span class="material-icons-outlined" style="font-size:18px;">upload</span>
@@ -543,7 +551,10 @@
                     <span class="material-icons-outlined" style="font-size:18px;">download</span>
                     Export SVG
                 </button>
-                <button class="btn btn-secondary" id="clearBtn" style="margin-top: 8px;">Clear All</button>
+                <button class="btn btn-secondary" id="clearBtn" style="margin-top: 8px; color: #CE1618;">
+                    <span class="material-icons-outlined" style="font-size:18px;">delete_forever</span>
+                    Clear Saved Data
+                </button>
             </div>
         </aside>
         
@@ -555,7 +566,7 @@
                     <div class="spine" id="spine"></div>
                 </div>
                 
-                <div class="hint">Click to add • Drag dot ↔ • Drag text ↕ • Corner to resize • Right-click for color</div>
+                <div class="hint">Click to add • Drag dot ↔ • Drag text ↕ • Corner to resize • Right-click for color • Auto-saved</div>
             </div>
         </main>
     </div>
@@ -688,6 +699,182 @@
             setupListeners();
             setupCanvasResize();
             setupContextMenu();
+            loadState();
+            setupAutoSave();
+        }
+        
+        // State persistence - URL hash + localStorage
+        function encodeState() {
+            const data = {
+                v: 2, // version
+                t: state.title,
+                c: state.color,
+                s: state.style,
+                f: state.fontScale,
+                m: state.milestones.map(m => ({
+                    i: m.id,
+                    p: Math.round(m.position * 1000) / 1000,
+                    y: m.yOffset,
+                    l: m.label,
+                    tt: m.title,
+                    ...(m.color && { cl: m.color }),
+                    ...(m.width && { w: m.width })
+                }))
+            };
+            return btoa(encodeURIComponent(JSON.stringify(data)));
+        }
+        
+        function decodeState(encoded) {
+            try {
+                const data = JSON.parse(decodeURIComponent(atob(encoded)));
+                if (data.v === 2) {
+                    return {
+                        title: data.t || '',
+                        color: data.c || '#002EFF',
+                        style: data.s || 'default',
+                        fontScale: data.f || 100,
+                        milestones: (data.m || []).map(m => ({
+                            id: m.i,
+                            position: m.p,
+                            yOffset: m.y,
+                            label: m.l || '',
+                            title: m.tt || '',
+                            ...(m.cl && { color: m.cl }),
+                            ...(m.w && { width: m.w })
+                        }))
+                    };
+                }
+                // v1 fallback (full JSON)
+                return data;
+            } catch (e) {
+                console.warn('Failed to decode state:', e);
+                return null;
+            }
+        }
+        
+        function saveToUrl() {
+            const encoded = encodeState();
+            history.replaceState(null, '', '#' + encoded);
+        }
+        
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('timeline-maker-state', encodeState());
+            } catch (e) {
+                console.warn('localStorage save failed:', e);
+            }
+        }
+        
+        function loadState() {
+            let loaded = false;
+            
+            // Priority 1: URL hash
+            if (window.location.hash.length > 1) {
+                const decoded = decodeState(window.location.hash.slice(1));
+                if (decoded) {
+                    applyLoadedState(decoded);
+                    loaded = true;
+                }
+            }
+            
+            // Priority 2: localStorage
+            if (!loaded) {
+                try {
+                    const stored = localStorage.getItem('timeline-maker-state');
+                    if (stored) {
+                        const decoded = decodeState(stored);
+                        if (decoded) {
+                            applyLoadedState(decoded);
+                            loaded = true;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('localStorage load failed:', e);
+                }
+            }
+        }
+        
+        function applyLoadedState(data) {
+            state.title = data.title || '';
+            state.color = data.color || '#002EFF';
+            state.style = data.style || 'default';
+            state.fontScale = data.fontScale || 100;
+            state.milestones = data.milestones || [];
+            state.idCounter = Math.max(0, ...state.milestones.map(m => m.id || 0), 0);
+            
+            // Apply to UI
+            document.getElementById('slideTitle').textContent = state.title;
+            document.documentElement.style.setProperty('--primary', state.color);
+            updateFontScale();
+            
+            document.querySelectorAll('.color-dot').forEach(d => 
+                d.classList.toggle('active', d.dataset.color === state.color)
+            );
+            document.querySelectorAll('.style-btn').forEach(b => 
+                b.classList.toggle('active', b.dataset.style === state.style)
+            );
+            document.getElementById('slide').className = 'slide' + (state.style !== 'default' ? ` style-${state.style}` : '');
+            
+            renderMilestones();
+        }
+        
+        function setupAutoSave() {
+            // Debounced save
+            let saveTimeout;
+            const debouncedSave = () => {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveToUrl();
+                    saveToLocalStorage();
+                }, 500);
+            };
+            
+            // Observe state changes by wrapping key functions
+            const originalRenderMilestones = renderMilestones;
+            renderMilestones = function() {
+                originalRenderMilestones();
+                debouncedSave();
+            };
+            
+            // Save on title change
+            document.getElementById('slideTitle').addEventListener('input', debouncedSave);
+        }
+        
+        function copyShareUrl() {
+            saveToUrl();
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('Shareable URL copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this URL:', window.location.href);
+            });
+        }
+        
+        function clearLocalData() {
+            if (confirm('Clear all saved data (localStorage & URL)? This cannot be undone.')) {
+                try {
+                    localStorage.removeItem('timeline-maker-state');
+                } catch (e) {}
+                history.replaceState(null, '', window.location.pathname);
+                state.title = '';
+                state.color = '#002EFF';
+                state.style = 'default';
+                state.fontScale = 100;
+                state.milestones = [];
+                state.selectedId = null;
+                state.idCounter = 0;
+                
+                document.getElementById('slideTitle').textContent = '';
+                document.documentElement.style.setProperty('--primary', state.color);
+                updateFontScale();
+                document.querySelectorAll('.color-dot').forEach(d => 
+                    d.classList.toggle('active', d.dataset.color === state.color)
+                );
+                document.querySelectorAll('.style-btn').forEach(b => 
+                    b.classList.toggle('active', b.dataset.style === 'default')
+                );
+                document.getElementById('slide').className = 'slide';
+                renderMilestones();
+            }
         }
         
         function setupContextMenu() {
@@ -834,6 +1021,8 @@
                     document.documentElement.style.setProperty('--primary', state.color);
                     document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.dataset.color === state.color));
                     renderMilestones();
+                    saveToUrl();
+                    saveToLocalStorage();
                 });
             });
         }
@@ -845,6 +1034,8 @@
                     state.style = btn.dataset.style;
                     document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b === btn));
                     document.getElementById('slide').className = 'slide' + (state.style !== 'default' ? ` style-${state.style}` : '');
+                    saveToUrl();
+                    saveToLocalStorage();
                 });
             });
             
@@ -852,10 +1043,14 @@
             document.getElementById('fontMinus').addEventListener('click', () => {
                 state.fontScale = Math.max(70, state.fontScale - 10);
                 updateFontScale();
+                saveToUrl();
+                saveToLocalStorage();
             });
             document.getElementById('fontPlus').addEventListener('click', () => {
                 state.fontScale = Math.min(150, state.fontScale + 10);
                 updateFontScale();
+                saveToUrl();
+                saveToLocalStorage();
             });
             
             // Spine click to add
@@ -866,14 +1061,39 @@
                 addMilestone(Math.max(0.05, Math.min(0.95, pos)));
             });
             
-            // Clear
-            document.getElementById('clearBtn').addEventListener('click', () => {
-                if (state.milestones.length && confirm('Clear all milestones?')) {
+            // New Timeline
+            document.getElementById('newBtn').addEventListener('click', () => {
+                if (state.milestones.length === 0 || confirm('Start a new timeline? Current work will be cleared.')) {
+                    state.title = '';
+                    state.color = '#002EFF';
+                    state.style = 'default';
+                    state.fontScale = 100;
                     state.milestones = [];
                     state.selectedId = null;
+                    state.idCounter = 0;
+                    
+                    document.getElementById('slideTitle').textContent = '';
+                    document.documentElement.style.setProperty('--primary', state.color);
+                    document.getElementById('fontDisplay').textContent = '100%';
+                    document.documentElement.style.setProperty('--font-scale', 1);
+                    document.querySelectorAll('.color-dot').forEach(d => 
+                        d.classList.toggle('active', d.dataset.color === state.color)
+                    );
+                    document.querySelectorAll('.style-btn').forEach(b => 
+                        b.classList.toggle('active', b.dataset.style === 'default')
+                    );
+                    document.getElementById('slide').className = 'slide';
                     renderMilestones();
+                    saveToUrl();
+                    saveToLocalStorage();
                 }
             });
+            
+            // Clear
+            document.getElementById('clearBtn').addEventListener('click', clearLocalData);
+            
+            // Share URL
+            document.getElementById('shareUrlBtn').addEventListener('click', copyShareUrl);
             
             // Distribute evenly
             document.getElementById('distributeBtn').addEventListener('click', () => {
@@ -1176,6 +1396,8 @@
                 document.getElementById('slide').className = 'slide' + (state.style !== 'default' ? ` style-${state.style}` : '');
                 
                 renderMilestones();
+                saveToUrl();
+                saveToLocalStorage();
                 hideModal('importModal');
             } catch (e) {
                 alert('Invalid JSON: ' + e.message);
